@@ -1,3 +1,4 @@
+
 import { S1aFormState } from "../types";
 
 const DB_NAME = 'S1a_HKD_Database';
@@ -73,4 +74,9 @@ export const clearDB = async (): Promise<void> => {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
   });
+};
+
+// Khôi phục dữ liệu từ object
+export const importDataToDB = async (data: S1aFormState): Promise<void> => {
+  await saveToDB(data);
 };

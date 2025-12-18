@@ -1,13 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight, LayoutDashboard, Calendar } from 'lucide-react';
+import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight, LayoutDashboard, Calendar, Upload } from 'lucide-react';
 import { S1aFormState, Transaction, AppView, TaxPayerInfo } from './types';
 import VoiceInput from './components/VoiceInput';
 import PreviewS1a from './components/PreviewS1a';
 import InstallPWA from './components/InstallPWA';
 import { parseTransactionFromAudio, transcribeAudio, transcribeStandardizedInfo } from './services/geminiService';
-import { exportToDoc, exportToExcel, generateExcelBlob } from './utils/exportUtils';
-import { saveToDB, loadFromDB, clearDB } from './services/db';
+import { exportToDoc, exportToExcel, generateExcelBlob, exportToJson } from './utils/exportUtils';
+import { saveToDB, loadFromDB, clearDB, importDataToDB } from './services/db';
 
 const SAMPLE_DATA: S1aFormState = {
   info: {
@@ -30,7 +30,8 @@ export default function App() {
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [processingField, setProcessingField] = useState<string | null>(null); 
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDataSettings, setShowDataSettings] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const initData = async () => {
@@ -47,9 +48,38 @@ export default function App() {
   }, [data, isLoaded]);
 
   const handleReset = async () => {
-    await clearDB();
-    setData(SAMPLE_DATA);
-    setShowResetConfirm(false);
+    if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu hiện tại?")) {
+      await clearDB();
+      setData(SAMPLE_DATA);
+      setShowDataSettings(false);
+    }
+  };
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content) as S1aFormState;
+        
+        // Kiểm tra sơ bộ cấu trúc
+        if (parsed.info && Array.isArray(parsed.transactions)) {
+          await importDataToDB(parsed);
+          setData(parsed);
+          alert("Khôi phục dữ liệu thành công!");
+          setShowDataSettings(false);
+        } else {
+          alert("File không đúng định dạng sao lưu.");
+        }
+      } catch (err) {
+        alert("Lỗi khi đọc file. Vui lòng thử lại.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // Reset input
   };
 
   const handleInfoChange = (field: keyof TaxPayerInfo, value: string) => {
@@ -131,10 +161,6 @@ export default function App() {
     }
   };
 
-  const handleSaveToDrive = () => {
-    exportToExcel(data);
-  };
-
   const handleSendExcel = async () => {
     const excelBlob = generateExcelBlob(data);
     const safeName = (data.info.name || 'S1a').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '_');
@@ -169,19 +195,19 @@ export default function App() {
 
   const renderEditView = () => (
     <div className="space-y-4 pb-48 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header Info Section - Tightened */}
+      {/* Privacy Indicator */}
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-md px-5 py-3 rounded-2xl border border-white shadow-sm">
         <div className="flex items-center gap-2">
-           <ShieldCheck className="w-4 h-4 text-indigo-600" />
-           <p className="text-[10px] font-black text-indigo-950 uppercase tracking-wider">Hệ thống bảo mật</p>
+           <ShieldCheck className="w-4 h-4 text-emerald-500" />
+           <p className="text-[10px] font-black text-emerald-950 uppercase tracking-wider">Dữ liệu được bảo mật cục bộ</p>
         </div>
         <div className="flex items-center gap-2">
            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-           <span className="text-[9px] font-bold text-gray-500 uppercase">AI Core v3</span>
+           <span className="text-[9px] font-bold text-gray-500 uppercase">Hoạt động Offline</span>
         </div>
       </div>
 
-      {/* A. Administrative Information - More Compact */}
+      {/* A. Administrative Information */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
         <header className="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
           <BookOpen className="w-5 h-5 text-indigo-950" />
@@ -219,7 +245,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* B. Transactions List - Optimized for full content and smaller amount box */}
+      {/* B. Transactions List */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
         <header className="flex items-center justify-between mb-6 border-b border-gray-50 pb-4">
           <div className="flex items-center gap-3">
@@ -299,10 +325,10 @@ export default function App() {
       <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 z-[100] pointer-events-none">
         <div className="max-w-xl mx-auto flex items-center gap-3 pointer-events-auto">
           <button 
-            onClick={() => setShowResetConfirm(true)} 
-            className="p-4 bg-white shadow-lg rounded-2xl text-gray-300 hover:text-red-500 transition-all border border-gray-50"
+            onClick={() => setShowDataSettings(true)} 
+            className="p-4 bg-white shadow-lg rounded-2xl text-gray-300 hover:text-indigo-600 transition-all border border-gray-50"
           >
-            <RotateCcw className="w-5 h-5" />
+            <Settings className="w-5 h-5" />
           </button>
 
           <div className="flex-1 flex items-center gap-3 bg-indigo-950 px-6 py-4 rounded-[28px] shadow-2xl border border-white/10 relative overflow-hidden group">
@@ -323,16 +349,68 @@ export default function App() {
 
       <InstallPWA />
 
-      {/* Simple Reset Modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-indigo-950/70 p-6 backdrop-blur-md">
-          <div className="bg-white rounded-3xl max-w-xs w-full p-8 shadow-2xl text-center">
-            <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black text-indigo-950 mb-2 uppercase tracking-tight">Xóa dữ liệu?</h3>
-            <p className="text-gray-400 text-[10px] mb-8 font-bold uppercase tracking-widest leading-relaxed">Bạn không thể hoàn tác thao tác này.</p>
-            <div className="space-y-2">
-              <button onClick={handleReset} className="w-full bg-red-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">Xóa hết</button>
-              <button onClick={() => setShowResetConfirm(false)} className="w-full bg-gray-100 text-indigo-950 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Hủy</button>
+      {/* Data Management Modal (Includes Backup/Restore) */}
+      {showDataSettings && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-indigo-950/70 p-6 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl overflow-hidden relative">
+            <button onClick={() => setShowDataSettings(false)} className="absolute top-4 right-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-all">
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="text-center mb-8">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Database className="w-6 h-6 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tight">Quản lý dữ liệu</h3>
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Bảo mật & Sao lưu an toàn</p>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => exportToJson(data)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-indigo-50 rounded-2xl transition-all border border-gray-100 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Download className="w-5 h-5 text-indigo-600" />
+                  <div className="text-left">
+                    <p className="text-xs font-black text-indigo-950 uppercase">Sao lưu dữ liệu</p>
+                    <p className="text-[9px] text-gray-500 uppercase">Xuất file .JSON dự phòng</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
+              </button>
+
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-emerald-50 rounded-2xl transition-all border border-gray-100 group"
+              >
+                <div className="flex items-center gap-3">
+                  <Upload className="w-5 h-5 text-emerald-600" />
+                  <div className="text-left">
+                    <p className="text-xs font-black text-indigo-950 uppercase">Khôi phục dữ liệu</p>
+                    <p className="text-[9px] text-gray-500 uppercase">Nhập từ file .JSON đã lưu</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-400" />
+              </button>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImportJson} 
+                accept=".json" 
+                className="hidden" 
+              />
+
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <button 
+                  onClick={handleReset} 
+                  className="w-full flex items-center gap-3 p-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  <p className="text-xs font-black uppercase">Xóa toàn bộ dữ liệu</p>
+                </button>
+              </div>
             </div>
           </div>
         </div>
