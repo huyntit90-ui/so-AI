@@ -25,7 +25,8 @@ const SAMPLE_DATA: S1aFormState = {
 
 export default function App() {
   const [view, setView] = useState<AppView>(AppView.EDIT);
-  const [data, setData] = useState<S1aFormState>(SAMPLE_DATA);
+  // Quan trọng: Khởi tạo là null để biết hệ thống đang trong trạng thái "Loading"
+  const [data, setData] = useState<S1aFormState | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [processingField, setProcessingField] = useState<string | null>(null); 
@@ -33,18 +34,36 @@ export default function App() {
   const [showDataSettings, setShowDataSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 1. Chỉ chạy 1 lần khi ứng dụng mở ra để tải dữ liệu cũ
   useEffect(() => {
     const initData = async () => {
-      const savedData = await loadFromDB();
-      if (savedData) setData(savedData);
-      setIsLoaded(true);
+      try {
+        const savedData = await loadFromDB();
+        if (savedData && savedData.transactions) {
+          setData(savedData);
+        } else {
+          // Nếu DB thực sự trống, mới dùng SAMPLE_DATA
+          setData(SAMPLE_DATA);
+        }
+      } catch (err) {
+        console.error("Lỗi khởi tạo dữ liệu:", err);
+        setData(SAMPLE_DATA);
+      } finally {
+        setIsLoaded(true);
+      }
     };
     initData();
   }, []);
 
+  // 2. Chỉ lưu vào DB khi dữ liệu đã được tải xong (isLoaded === true)
   useEffect(() => {
-    if (!isLoaded) return;
-    saveToDB(data).catch(err => console.error("Lỗi lưu DB:", err));
+    if (!isLoaded || !data) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveToDB(data).catch(err => console.error("Lỗi lưu DB:", err));
+    }, 500); // Debounce 500ms để tránh lưu liên tục
+
+    return () => clearTimeout(timeoutId);
   }, [data, isLoaded]);
 
   const handleReset = async () => {
@@ -65,7 +84,6 @@ export default function App() {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content) as S1aFormState;
         
-        // Kiểm tra sơ bộ cấu trúc
         if (parsed.info && Array.isArray(parsed.transactions)) {
           await importDataToDB(parsed);
           setData(parsed);
@@ -79,11 +97,12 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-    e.target.value = ""; // Reset input
+    e.target.value = ""; 
   };
 
   const handleInfoChange = (field: keyof TaxPayerInfo, value: string) => {
-    setData(prev => ({ ...prev, info: { ...prev.info, [field]: value } }));
+    if (!data) return;
+    setData(prev => prev ? ({ ...prev, info: { ...prev.info, [field]: value } }) : null);
   };
 
   const handleError = (e: any) => {
@@ -104,20 +123,22 @@ export default function App() {
   };
 
   const addTransaction = () => {
+    if (!data) return;
     const newTrans: Transaction = {
       id: Date.now().toString(),
       date: new Date().toLocaleDateString('vi-VN'),
       description: "",
       amount: 0
     };
-    setData(prev => ({ ...prev, transactions: [...prev.transactions, newTrans] }));
+    setData(prev => prev ? ({ ...prev, transactions: [...prev.transactions, newTrans] }) : null);
   };
 
   const updateTransaction = (id: string, field: keyof Transaction, value: string | number) => {
-    setData(prev => ({
+    if (!data) return;
+    setData(prev => prev ? ({
       ...prev,
       transactions: prev.transactions.map(t => t.id === id ? { ...t, [field]: value } : t)
-    }));
+    }) : null);
   };
 
   const handleVoiceForTransactionDesc = async (id: string, audioBase64: string, mimeType: string) => {
@@ -133,13 +154,15 @@ export default function App() {
   };
 
   const removeTransaction = (id: string) => {
-    setData(prev => ({
+    if (!data) return;
+    setData(prev => prev ? ({
       ...prev,
       transactions: prev.transactions.filter(t => t.id !== id)
-    }));
+    }) : null);
   };
 
   const sortTransactionsByDate = () => {
+    if (!data) return;
     const sorted = [...data.transactions].sort((a, b) => {
       const parseDate = (s: string) => {
         const parts = s.split('/');
@@ -149,13 +172,13 @@ export default function App() {
       };
       return parseDate(a.date) - parseDate(b.date);
     });
-    setData(prev => ({ ...prev, transactions: sorted }));
+    setData(prev => prev ? ({ ...prev, transactions: sorted }) : null);
     setAiFeedback("Đã sắp xếp ngày!");
     setTimeout(() => setAiFeedback(null), 1500);
   };
 
   const handleSmartVoiceAdd = async (audioBase64: string, mimeType: string) => {
-    if (!audioBase64) return;
+    if (!audioBase64 || !data) return;
     setIsProcessingAI(true);
     setAiFeedback("AI đang phân tích...");
     try {
@@ -166,7 +189,7 @@ export default function App() {
         description: result.description || "Giao dịch ghi bằng AI",
         amount: result.amount || 0
       };
-      setData(prev => ({ ...prev, transactions: [...prev.transactions, newTrans] }));
+      setData(prev => prev ? ({ ...prev, transactions: [...prev.transactions, newTrans] }) : null);
       setAiFeedback("Ghi thành công!");
       setTimeout(() => setAiFeedback(null), 1500);
     } catch (e) {
@@ -177,6 +200,7 @@ export default function App() {
   };
 
   const handleSendExcel = async () => {
+    if (!data) return;
     const excelBlob = generateExcelBlob(data);
     const safeName = (data.info.name || 'S1a').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/gi, '_');
     const fileName = `${safeName}_S1a.xls`;
@@ -208,9 +232,20 @@ export default function App() {
     return isNaN(num) ? 0 : num;
   };
 
+  if (!isLoaded || !data) {
+    return (
+      <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center animate-bounce shadow-xl mb-4">
+          <Database className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tight">Đang tải dữ liệu...</h2>
+        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Vui lòng đợi trong giây lát</p>
+      </div>
+    );
+  }
+
   const renderEditView = () => (
     <div className="space-y-4 pb-48 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Privacy Indicator */}
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-md px-5 py-3 rounded-2xl border border-white shadow-sm">
         <div className="flex items-center gap-2">
            <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -222,7 +257,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* A. Administrative Information */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
         <header className="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
           <BookOpen className="w-5 h-5 text-indigo-950" />
@@ -260,7 +294,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* B. Transactions List */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
         <header className="flex items-center justify-between mb-6 border-b border-gray-50 pb-4">
           <div className="flex items-center gap-3">
@@ -346,7 +379,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* Simplified Control Dock */}
       <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 z-[100] pointer-events-none">
         <div className="max-w-xl mx-auto flex items-center gap-3 pointer-events-auto">
           <button 
@@ -374,7 +406,6 @@ export default function App() {
 
       <InstallPWA />
 
-      {/* Data Management Modal (Includes Backup/Restore) */}
       {showDataSettings && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-indigo-950/70 p-6 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl overflow-hidden relative">
@@ -392,7 +423,7 @@ export default function App() {
 
             <div className="space-y-3">
               <button 
-                onClick={() => exportToJson(data)}
+                onClick={() => data && exportToJson(data)}
                 className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-indigo-50 rounded-2xl transition-all border border-gray-100 group"
               >
                 <div className="flex items-center gap-3">
@@ -465,7 +496,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fc]">
-      {/* Refined Small Banner */}
       <header className="bg-indigo-950 px-6 pt-8 pb-10 md:pt-12 md:pb-16 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-400 rounded-full -translate-y-1/2 translate-x-1/2 opacity-[0.05] blur-3xl"></div>
         

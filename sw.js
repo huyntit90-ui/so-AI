@@ -1,4 +1,5 @@
-const CACHE_NAME = 's1a-ai-v11';
+
+const CACHE_NAME = 's1a-ai-v12'; // Tăng phiên bản
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -6,16 +7,12 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  // Không ép buộc skipWaiting ngay lập tức để tránh tranh chấp trạng thái ứng dụng
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Thử cache các file quan trọng, nếu lỗi 1 file cũng không làm SW chết hẳn
       return Promise.allSettled(
         ASSETS_TO_CACHE.map(url => cache.add(url))
-      ).then(results => {
-        const failed = results.filter(r => r.status === 'rejected');
-        if (failed.length > 0) console.warn('SW: Một số tài nguyên không thể cache:', failed);
-      });
+      );
     })
   );
 });
@@ -32,14 +29,15 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  
+  // Tránh cache các request tới Google API để đảm bảo AI luôn hoạt động đúng
+  if (event.request.url.includes('generativelanguage.googleapis.com')) return;
 
-  // Chiến lược: Network First (Ưu tiên mạng để cập nhật dữ liệu mới nhất từ AI)
   event.respondWith(
     fetch(event.request)
       .catch(() => {
         return caches.match(event.request).then(response => {
           if (response) return response;
-          // Nếu là điều hướng trang, trả về index.html từ cache
           if (event.request.mode === 'navigate') {
             return caches.match('./index.html');
           }
