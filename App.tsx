@@ -27,40 +27,55 @@ export default function App() {
   const [view, setView] = useState<AppView>(AppView.EDIT);
   const [data, setData] = useState<S1aFormState | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [processingField, setProcessingField] = useState<string | null>(null); 
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [showDataSettings, setShowDataSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 1. Khởi tạo dữ liệu với cơ chế bảo vệ
   useEffect(() => {
-    const initData = async () => {
+    const initApp = async () => {
       try {
+        // Yêu cầu quyền lưu trữ vĩnh viễn (nếu trình duyệt hỗ trợ)
+        if (navigator.storage && navigator.storage.persist) {
+          await navigator.storage.persist();
+        }
+
         const savedData = await loadFromDB();
-        if (savedData && savedData.transactions) {
+        if (savedData && savedData.info) {
           setData(savedData);
         } else {
+          // Chỉ nạp dữ liệu mẫu nếu CHẮC CHẮN không có dữ liệu cũ
           setData(SAMPLE_DATA);
         }
-      } catch (err) {
-        console.error("Lỗi khởi tạo dữ liệu:", err);
-        setData(SAMPLE_DATA);
-      } finally {
         setIsLoaded(true);
+      } catch (err: any) {
+        console.error("Lỗi khởi tạo:", err);
+        setLoadError(err.message || "Không thể kết nối cơ sở dữ liệu cục bộ.");
       }
     };
-    initData();
+    initApp();
   }, []);
 
+  // 2. Chỉ lưu khi isLoaded là true và có dữ liệu hợp lệ
   useEffect(() => {
     if (!isLoaded || !data) return;
     
     const timeoutId = setTimeout(() => {
-      saveToDB(data).catch(err => console.error("Lỗi lưu DB:", err));
-    }, 500);
+      saveToDB(data).catch(err => {
+        console.error("Lưu dữ liệu thất bại:", err);
+        setAiFeedback("Lỗi lưu trữ!");
+      });
+    }, 1000); // Tăng debounce để ổn định hơn
 
     return () => clearTimeout(timeoutId);
   }, [data, isLoaded]);
+
+  const handleRetryLoad = () => {
+    window.location.reload();
+  };
 
   const handleReset = async () => {
     if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu hiện tại?")) {
@@ -228,14 +243,36 @@ export default function App() {
     return isNaN(num) ? 0 : num;
   };
 
+  // Màn hình lỗi bảo vệ dữ liệu
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 bg-red-500 rounded-3xl flex items-center justify-center shadow-2xl mb-6 text-white animate-pulse">
+          <AlertCircle className="w-10 h-10" />
+        </div>
+        <h2 className="text-2xl font-black text-red-950 uppercase tracking-tight">Cảnh báo dữ liệu!</h2>
+        <p className="text-red-700 font-medium text-base mt-4 max-w-sm">
+          {loadError}. Để bảo vệ dữ liệu, ứng dụng đã tạm dừng nạp dữ liệu mẫu.
+        </p>
+        <button 
+          onClick={handleRetryLoad}
+          className="mt-8 flex items-center gap-2 px-8 py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-red-700 transition-all"
+        >
+          <RefreshCw className="w-5 h-5" /> Thử lại ngay
+        </button>
+      </div>
+    );
+  }
+
+  // Màn hình tải
   if (!isLoaded || !data) {
     return (
       <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center animate-bounce shadow-xl mb-4">
-          <Database className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center animate-bounce shadow-xl mb-4 text-white">
+          <Database className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-black text-indigo-950 uppercase tracking-tight">Đang tải dữ liệu...</h2>
-        <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mt-2">Vui lòng đợi trong giây lát</p>
+        <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mt-2">Đang kết nối kho lưu trữ an toàn</p>
       </div>
     );
   }
@@ -245,11 +282,11 @@ export default function App() {
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-md px-5 py-4 rounded-2xl border border-white shadow-sm">
         <div className="flex items-center gap-2">
            <ShieldCheck className="w-5 h-5 text-emerald-500" />
-           <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Bảo mật cục bộ</p>
+           <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Bảo mật vĩnh viễn</p>
         </div>
         <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-           <span className="text-[10px] font-bold text-gray-500 uppercase">Sẵn sàng Offline</span>
+           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Bộ nhớ an toàn</span>
         </div>
       </div>
 
