@@ -282,7 +282,7 @@ export default function App() {
       <div className="flex items-center justify-between bg-white/60 backdrop-blur-md px-5 py-4 rounded-2xl border border-white shadow-sm">
         <div className="flex items-center gap-2">
            <ShieldCheck className="w-5 h-5 text-emerald-500" />
-           <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Bảo mật vĩnh viễn</p>
+           <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Bảo mật</p>
         </div>
         <div className="flex items-center gap-2">
            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
