@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight, LayoutDashboard, Calendar, Upload } from 'lucide-react';
+import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight, LayoutDashboard, Calendar, Upload, Clock } from 'lucide-react';
 import { S1aFormState, Transaction, AppView, TaxPayerInfo } from './types';
 import VoiceInput from './components/VoiceInput';
 import PreviewS1a from './components/PreviewS1a';
@@ -139,6 +139,21 @@ export default function App() {
     }));
   };
 
+  const sortTransactionsByDate = () => {
+    const sorted = [...data.transactions].sort((a, b) => {
+      const parseDate = (s: string) => {
+        const parts = s.split('/');
+        if (parts.length < 3) return 0;
+        const [d, m, y] = parts.map(Number);
+        return new Date(y, m - 1, d).getTime();
+      };
+      return parseDate(a.date) - parseDate(b.date);
+    });
+    setData(prev => ({ ...prev, transactions: sorted }));
+    setAiFeedback("Đã sắp xếp ngày!");
+    setTimeout(() => setAiFeedback(null), 1500);
+  };
+
   const handleSmartVoiceAdd = async (audioBase64: string, mimeType: string) => {
     if (!audioBase64) return;
     setIsProcessingAI(true);
@@ -252,8 +267,18 @@ export default function App() {
             <LayoutDashboard className="w-5 h-5 text-emerald-500" />
             <h2 className="text-sm font-black text-indigo-950 uppercase tracking-tight">Chi tiết nghiệp vụ</h2>
           </div>
-          <div className="bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-             <span className="text-[9px] font-black text-emerald-600 uppercase">S1a-HKD</span>
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={sortTransactionsByDate}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-full border border-indigo-100 transition-all group"
+                title="Sắp xếp theo thời gian"
+             >
+                <Clock className="w-3 h-3 text-indigo-600" />
+                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider">Sắp xếp</span>
+             </button>
+             <div className="bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                <span className="text-[9px] font-black text-emerald-600 uppercase">S1a-HKD</span>
+             </div>
           </div>
         </header>
 
@@ -335,7 +360,7 @@ export default function App() {
             <div className="relative flex-1 overflow-hidden">
                <p className="text-[8px] text-white/40 font-black uppercase tracking-widest mb-0.5 leading-none">AI Assistant</p>
                <p className="text-[11px] text-white font-bold truncate">
-                 {isProcessingAI ? "Processing..." : "Nhấn mic để ghi nhanh"}
+                 {aiFeedback || (isProcessingAI ? "Processing..." : "Nhấn mic để ghi nhanh")}
                </p>
             </div>
             <VoiceInput onAudioCapture={handleSmartVoiceAdd} isProcessing={isProcessingAI} className="bg-white text-indigo-950 shadow-xl scale-[1.2] transition-all" />
