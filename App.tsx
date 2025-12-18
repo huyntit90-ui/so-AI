@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight } from 'lucide-react';
+import { BookOpen, Trash2, Plus, ArrowLeft, Download, FileText, DollarSign, FileSpreadsheet, RotateCcw, Smartphone, X, Mail, Sparkles, Database, HardDrive, AlertTriangle, ShieldCheck, Key, HelpCircle, ExternalLink, Settings, PlayCircle, RefreshCw, CheckCircle2, WifiOff, Copy, Check, Search, FolderOpen, CloudUpload, Monitor, Rocket, Globe, AlertCircle, ChevronRight, LayoutDashboard, Calendar } from 'lucide-react';
 import { S1aFormState, Transaction, AppView, TaxPayerInfo } from './types';
 import VoiceInput from './components/VoiceInput';
 import PreviewS1a from './components/PreviewS1a';
@@ -57,7 +57,7 @@ export default function App() {
   };
 
   const handleError = (e: any) => {
-    setAiFeedback("Lỗi kết nối AI. Vui lòng kiểm tra lại đường truyền.");
+    setAiFeedback("Đang thử kết nối lại...");
     setTimeout(() => setAiFeedback(null), 3000);
   };
 
@@ -112,18 +112,18 @@ export default function App() {
   const handleSmartVoiceAdd = async (audioBase64: string, mimeType: string) => {
     if (!audioBase64) return;
     setIsProcessingAI(true);
-    setAiFeedback("AI đang xử lý...");
+    setAiFeedback("AI đang phân tích...");
     try {
       const result = await parseTransactionFromAudio(audioBase64, mimeType);
       const newTrans: Transaction = {
         id: Date.now().toString(),
         date: result.date || new Date().toLocaleDateString('vi-VN'),
-        description: result.description || "Giao dịch mới",
+        description: result.description || "Giao dịch ghi bằng AI",
         amount: result.amount || 0
       };
       setData(prev => ({ ...prev, transactions: [...prev.transactions, newTrans] }));
-      setAiFeedback("Đã ghi nhận!");
-      setTimeout(() => setAiFeedback(null), 2000);
+      setAiFeedback("Ghi thành công!");
+      setTimeout(() => setAiFeedback(null), 1500);
     } catch (e) {
       handleError(e);
     } finally {
@@ -133,7 +133,6 @@ export default function App() {
 
   const handleSaveToDrive = () => {
     exportToExcel(data);
-    alert("File Excel đã được tải xuống. Bạn có thể tải tệp này lên Google Drive để lưu trữ lâu dài.");
   };
 
   const handleSendExcel = async () => {
@@ -169,95 +168,121 @@ export default function App() {
   };
 
   const renderEditView = () => (
-    <div className="space-y-6 pb-40">
-      {/* Privacy & Security Header */}
-      <div className="flex items-center justify-between bg-white/70 backdrop-blur-lg px-6 py-4 rounded-3xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-3">
-           <div className="p-2 bg-green-50 rounded-xl text-green-600">
-             <ShieldCheck className="w-5 h-5" />
-           </div>
-           <div>
-             <p className="text-[10px] font-black text-indigo-950 uppercase tracking-widest leading-none">Bảo mật dữ liệu</p>
-             <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Dữ liệu lưu trữ nội bộ trên trình duyệt</p>
-           </div>
+    <div className="space-y-4 pb-48 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Header Info Section - Tightened */}
+      <div className="flex items-center justify-between bg-white/60 backdrop-blur-md px-5 py-3 rounded-2xl border border-white shadow-sm">
+        <div className="flex items-center gap-2">
+           <ShieldCheck className="w-4 h-4 text-indigo-600" />
+           <p className="text-[10px] font-black text-indigo-950 uppercase tracking-wider">Hệ thống bảo mật</p>
         </div>
         <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-           <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">Hệ thống sẵn sàng</span>
+           <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+           <span className="text-[9px] font-bold text-gray-500 uppercase">AI Core v3</span>
         </div>
       </div>
 
-      {/* Phần A: Thông tin hành chính */}
-      <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8 md:p-10">
-        <h2 className="text-2xl font-black text-indigo-950 mb-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm"><BookOpen className="w-7 h-7" /></div>
-          A. Thông tin Hộ kinh doanh
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* A. Administrative Information - More Compact */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <header className="flex items-center gap-3 mb-6 border-b border-gray-50 pb-4">
+          <BookOpen className="w-5 h-5 text-indigo-950" />
+          <h2 className="text-sm font-black text-indigo-950 uppercase tracking-tight">Thông tin định danh</h2>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
-            { label: "Chủ hộ kinh doanh", key: "name" as const, placeholder: "Họ và tên..." },
-            { label: "Mã số thuế", key: "taxId" as const, placeholder: "Nhập dãy số MST..." },
-            { label: "Địa chỉ cư trú", key: "address" as const, placeholder: "Số nhà, đường, phường/xã...", full: true },
-            { label: "Địa điểm kinh doanh", key: "location" as const, placeholder: "Tên chợ, tên cửa hàng...", full: true },
-            { label: "Kỳ kê khai thuế", key: "period" as const, placeholder: "Tháng/Quý năm..." }
+            { label: "Chủ hộ kinh doanh", key: "name" as const, placeholder: "Tên chủ hộ..." },
+            { label: "Mã số thuế", key: "taxId" as const, placeholder: "Nhập MST..." },
+            { label: "Kỳ kê khai", key: "period" as const, placeholder: "Tháng/Năm..." },
+            { label: "Địa điểm KD", key: "location" as const, placeholder: "Nơi kinh doanh...", full: false },
+            { label: "Địa chỉ cư trú", key: "address" as const, placeholder: "Địa chỉ...", full: true },
           ].map((field) => (
-            <div key={field.key} className={`${field.full ? 'md:col-span-2' : ''}`}>
-              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-1">{field.label}</label>
-              <div className="flex items-center gap-4 group">
+            <div key={field.key} className={`${field.full ? 'md:col-span-2' : ''} space-y-1.5`}>
+              <label className="block text-[9px] font-black text-indigo-900/40 uppercase tracking-widest ml-1">{field.label}</label>
+              <div className="flex items-center gap-2 relative">
                 <input
                   type="text"
                   value={data.info[field.key]}
                   onChange={(e) => handleInfoChange(field.key, e.target.value)}
                   placeholder={field.placeholder}
-                  className="block w-full rounded-2xl border-gray-100 bg-gray-50/50 border px-6 py-5 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 text-sm transition-all outline-none font-medium placeholder:text-gray-300"
+                  className="block w-full rounded-xl border-gray-100 bg-gray-50/50 border px-4 py-3 focus:bg-white focus:border-indigo-400 transition-all outline-none text-sm font-semibold text-indigo-950"
                 />
-                <VoiceInput onAudioCapture={(audio, mime) => handleVoiceForField(field.key, field.label, audio, mime)} isProcessing={processingField === field.key} compact className="shrink-0" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <VoiceInput 
+                    onAudioCapture={(audio, mime) => handleVoiceForField(field.key, field.label, audio, mime)} 
+                    isProcessing={processingField === field.key} 
+                    compact 
+                  />
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Phần B: Doanh thu chi tiết */}
-      <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 p-8 md:p-10">
-        <h2 className="text-2xl font-black text-indigo-950 flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 shadow-sm"><DollarSign className="w-7 h-7" /></div>
-          B. Nhật ký doanh thu bán hàng
-        </h2>
-        
-        <div className="space-y-6">
+      {/* B. Transactions List - Optimized for full content and smaller amount box */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <header className="flex items-center justify-between mb-6 border-b border-gray-50 pb-4">
+          <div className="flex items-center gap-3">
+            <LayoutDashboard className="w-5 h-5 text-emerald-500" />
+            <h2 className="text-sm font-black text-indigo-950 uppercase tracking-tight">Chi tiết nghiệp vụ</h2>
+          </div>
+          <div className="bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+             <span className="text-[9px] font-black text-emerald-600 uppercase">S1a-HKD</span>
+          </div>
+        </header>
+
+        <div className="space-y-3">
           {data.transactions.length === 0 ? (
-            <div className="py-20 text-center border-4 border-dashed border-gray-50 rounded-[40px]">
-               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <FileSpreadsheet className="w-8 h-8 text-gray-200" />
-               </div>
-               <p className="text-gray-300 text-sm font-black uppercase tracking-widest">Danh sách trống</p>
-               <p className="text-gray-200 text-xs mt-2 italic">Dùng micro phía dưới để ghi nhanh bằng giọng nói</p>
+            <div className="py-12 text-center border-2 border-dashed border-gray-50 rounded-2xl">
+               <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Không có dữ liệu</p>
             </div>
           ) : (
-            data.transactions.map((item) => (
-              <div key={item.id} className="relative p-8 rounded-[32px] bg-gray-50/40 border border-gray-100 flex flex-col gap-5 group hover:bg-white hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300">
-                <div className="flex items-center justify-between gap-4">
+            data.transactions.map((item, idx) => (
+              <div key={item.id} className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:shadow-md transition-all group">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <input type="text" value={item.date} onChange={(e) => updateTransaction(item.id, 'date', e.target.value)} className="bg-white px-5 py-2.5 rounded-xl border border-gray-100 text-xs font-black text-indigo-600 w-36 text-center shadow-sm" />
+                    <span className="text-[9px] font-black text-indigo-900 bg-indigo-50 w-5 h-5 rounded flex items-center justify-center">{idx + 1}</span>
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3 text-indigo-400" />
+                      <input 
+                        type="text" 
+                        value={item.date} 
+                        onChange={(e) => updateTransaction(item.id, 'date', e.target.value)} 
+                        className="bg-transparent text-[10px] font-bold text-indigo-600 outline-none w-20 border-b border-transparent focus:border-indigo-100"
+                      />
+                    </div>
                   </div>
-                  <button onClick={() => removeTransaction(item.id)} className="text-gray-300 hover:text-red-500 p-2 transition-colors active:scale-90"><Trash2 className="w-5 h-5" /></button>
+                  <button onClick={() => removeTransaction(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
                 </div>
-                <div className="flex flex-col md:flex-row items-stretch md:items-center gap-5">
-                  <div className="flex-1 flex gap-4 items-center bg-white rounded-2xl border border-gray-100 px-5 py-3 shadow-sm">
-                    <textarea value={item.description} onChange={(e) => updateTransaction(item.id, 'description', e.target.value)} rows={1} className="w-full bg-transparent text-sm py-2 resize-none outline-none font-medium leading-relaxed" placeholder="Ghi chú nội dung bán hàng..." />
-                    <VoiceInput onAudioCapture={(audio, mime) => handleVoiceForTransactionDesc(item.id, audio, mime)} isProcessing={processingField === `trans-${item.id}`} compact className="shrink-0 scale-95" />
-                  </div>
-                  <div className="w-full md:w-56 bg-indigo-50/50 rounded-2xl border border-indigo-100 px-6 py-4 flex items-center shadow-sm group-hover:bg-indigo-600 group-hover:border-indigo-600 transition-colors">
-                     <span className="text-[10px] font-black text-indigo-400 mr-3 uppercase group-hover:text-white/50">VND</span>
-                     <input 
-                      type="text" 
-                      inputMode="numeric"
-                      value={formatAmountInput(item.amount)} 
-                      onChange={(e) => updateTransaction(item.id, 'amount', parseAmountInput(e.target.value))} 
-                      className="w-full text-right bg-transparent text-xl font-black text-indigo-900 outline-none group-hover:text-white transition-colors" 
-                      placeholder="0"
+                
+                <div className="flex flex-col gap-3">
+                  <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-start gap-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+                    <textarea 
+                      value={item.description} 
+                      onChange={(e) => updateTransaction(item.id, 'description', e.target.value)} 
+                      rows={2}
+                      className="w-full bg-transparent text-sm outline-none font-medium text-indigo-950 placeholder:text-gray-200 resize-none leading-relaxed" 
+                      placeholder="Nội dung chi tiết hàng hóa, dịch vụ..." 
                     />
+                    <VoiceInput 
+                      onAudioCapture={(audio, mime) => handleVoiceForTransactionDesc(item.id, audio, mime)} 
+                      isProcessing={processingField === `trans-${item.id}`} 
+                      compact 
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-end">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 flex items-center gap-3">
+                      <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">VND</span>
+                      <input 
+                        type="text" 
+                        inputMode="numeric"
+                        value={formatAmountInput(item.amount)} 
+                        onChange={(e) => updateTransaction(item.id, 'amount', parseAmountInput(e.target.value))} 
+                        className="bg-transparent text-right text-base font-black text-indigo-950 outline-none w-28 md:w-40" 
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -265,55 +290,49 @@ export default function App() {
           )}
         </div>
 
-        <button onClick={addTransaction} className="mt-10 w-full py-6 border-2 border-dashed border-gray-200 rounded-[32px] text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 flex items-center justify-center gap-4 font-black text-xs uppercase tracking-[0.3em] transition-all active:scale-[0.98]">
-          <Plus className="w-6 h-6" /> Thêm nghiệp vụ mới
+        <button onClick={addTransaction} className="mt-6 w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50/20 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest transition-all">
+          <Plus className="w-4 h-4" /> Thêm nghiệp vụ mới
         </button>
       </div>
 
-      {/* Thanh điều khiển nổi (Floating Action Bar) */}
-      <div className="fixed bottom-0 left-0 right-0 p-8 z-50 pointer-events-none">
-        <div className="max-w-2xl mx-auto flex items-center gap-5 pointer-events-auto">
+      {/* Simplified Control Dock */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 z-[100] pointer-events-none">
+        <div className="max-w-xl mx-auto flex items-center gap-3 pointer-events-auto">
           <button 
             onClick={() => setShowResetConfirm(true)} 
-            className="p-6 bg-white hover:bg-red-50 hover:text-red-600 text-gray-300 rounded-[32px] transition-all shrink-0 shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-gray-50 active:scale-90"
-            title="Làm mới sổ"
+            className="p-4 bg-white shadow-lg rounded-2xl text-gray-300 hover:text-red-500 transition-all border border-gray-50"
           >
-            <RotateCcw className="w-7 h-7" />
+            <RotateCcw className="w-5 h-5" />
           </button>
 
-          <div className="flex-1 flex items-center gap-5 bg-indigo-950 px-8 py-5 rounded-[40px] border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.4)] backdrop-blur-3xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="flex-1 flex items-center gap-3 bg-indigo-950 px-6 py-4 rounded-[28px] shadow-2xl border border-white/10 relative overflow-hidden group">
             <div className="relative flex-1 overflow-hidden">
-               <p className="text-xs text-white font-black uppercase tracking-[0.15em] truncate">
-                 {isProcessingAI ? "AI đang lắng nghe..." : aiFeedback ? aiFeedback : "Ghi âm nhanh"}
+               <p className="text-[8px] text-white/40 font-black uppercase tracking-widest mb-0.5 leading-none">AI Assistant</p>
+               <p className="text-[11px] text-white font-bold truncate">
+                 {isProcessingAI ? "Processing..." : "Nhấn mic để ghi nhanh"}
                </p>
-               {!isProcessingAI && !aiFeedback && <p className="text-[10px] text-white/30 truncate italic mt-1 font-medium">VD: "Bán hàng sáng nay 15 triệu 500 ngàn"</p>}
             </div>
-            <VoiceInput onAudioCapture={handleSmartVoiceAdd} isProcessing={isProcessingAI} className="bg-white text-indigo-950 shadow-2xl scale-[1.4] hover:scale-[1.5] active:scale-125 transition-transform" />
+            <VoiceInput onAudioCapture={handleSmartVoiceAdd} isProcessing={isProcessingAI} className="bg-white text-indigo-950 shadow-xl scale-[1.2] transition-all" />
           </div>
 
-          <button onClick={() => setView(AppView.PREVIEW)} className="bg-indigo-600 text-white p-6 rounded-[32px] font-black shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:bg-black transition-all active:scale-95 flex items-center justify-center shrink-0">
-            <FileText className="w-8 h-8" />
+          <button onClick={() => setView(AppView.PREVIEW)} className="bg-indigo-600 text-white p-4 rounded-2xl shadow-xl hover:bg-black transition-all">
+            <FileText className="w-6 h-6" />
           </button>
         </div>
       </div>
 
       <InstallPWA />
 
-      {/* Modal xác nhận xóa */}
+      {/* Simple Reset Modal */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-8 backdrop-blur-2xl">
-          <div className="bg-white rounded-[48px] max-w-sm w-full p-12 shadow-2xl relative border border-gray-100 text-center">
-            <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-              <AlertTriangle className="w-12 h-12" />
-            </div>
-            <h3 className="text-2xl font-black text-gray-950 mb-4 uppercase tracking-tight leading-none">Xóa toàn bộ dữ liệu?</h3>
-            <p className="text-gray-500 text-sm mb-10 leading-relaxed font-medium">
-              Sổ hiện tại sẽ bị xóa sạch để bắt đầu kỳ mới. Hành động này không thể hoàn tác.
-            </p>
-            <div className="flex flex-col gap-4">
-              <button onClick={handleReset} className="w-full bg-red-600 text-white py-6 rounded-[28px] font-black uppercase tracking-widest shadow-xl shadow-red-200 active:scale-95 transition-all">Tôi xác nhận xóa</button>
-              <button onClick={() => setShowResetConfirm(false)} className="w-full bg-gray-100 text-gray-700 py-6 rounded-[28px] font-black uppercase tracking-widest transition-colors hover:bg-gray-200">Giữ lại dữ liệu</button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-indigo-950/70 p-6 backdrop-blur-md">
+          <div className="bg-white rounded-3xl max-w-xs w-full p-8 shadow-2xl text-center">
+            <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black text-indigo-950 mb-2 uppercase tracking-tight">Xóa dữ liệu?</h3>
+            <p className="text-gray-400 text-[10px] mb-8 font-bold uppercase tracking-widest leading-relaxed">Bạn không thể hoàn tác thao tác này.</p>
+            <div className="space-y-2">
+              <button onClick={handleReset} className="w-full bg-red-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">Xóa hết</button>
+              <button onClick={() => setShowResetConfirm(false)} className="w-full bg-gray-100 text-indigo-950 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Hủy</button>
             </div>
           </div>
         </div>
@@ -322,22 +341,19 @@ export default function App() {
   );
 
   const renderPreviewView = () => (
-    <div className="animate-fade-in max-w-5xl mx-auto py-6">
-      <div className="sticky top-8 z-50 bg-white/80 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.1)] p-5 rounded-[40px] flex items-center justify-between mb-12 mx-6">
-        <button onClick={() => setView(AppView.EDIT)} className="flex items-center gap-3 text-indigo-950 font-black uppercase text-[11px] tracking-widest px-8 py-4 hover:bg-indigo-50 rounded-2xl transition-all active:scale-95">
-          <ArrowLeft className="w-5 h-5" /> Quay lại sửa
+    <div className="animate-in fade-in zoom-in-95 duration-500 max-w-4xl mx-auto py-4">
+      <div className="sticky top-4 z-50 bg-white/90 backdrop-blur-lg border border-white shadow-xl p-3 rounded-2xl flex items-center justify-between mb-8 mx-4">
+        <button onClick={() => setView(AppView.EDIT)} className="flex items-center gap-2 text-indigo-950 font-black uppercase text-[9px] tracking-widest px-4 py-3 hover:bg-indigo-50 rounded-xl transition-all">
+          <ArrowLeft className="w-4 h-4" /> Quay lại
         </button>
-        <div className="flex gap-3">
-          <button onClick={handleSendExcel} className="px-8 py-4 bg-green-600 text-white rounded-2xl shadow-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 active:scale-95 transition-all">
-            <Mail className="w-5 h-5" /> Gửi file
-          </button>
-          <button onClick={handleSaveToDrive} className="p-4 bg-indigo-900 text-white rounded-2xl shadow-xl active:scale-95 transition-all" title="Lưu trữ Excel">
-            <HardDrive className="w-6 h-6" />
+        <div className="flex gap-2">
+          <button onClick={handleSendExcel} className="px-5 py-3 bg-emerald-600 text-white rounded-xl shadow-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-2 transition-all">
+            <Mail className="w-4 h-4" /> Gửi báo cáo
           </button>
         </div>
       </div>
-      <div className="overflow-auto pb-40 px-6 flex justify-center">
-         <div className="shadow-[0_40px_100px_rgba(0,0,0,0.1)] rounded-sm">
+      <div className="overflow-auto pb-48 px-4 flex justify-center">
+         <div className="shadow-2xl rounded-xl bg-white p-2 transform origin-top md:scale-100 scale-90">
             <PreviewS1a data={data} />
          </div>
       </div>
@@ -345,40 +361,39 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f1f3f8]">
-      <header className="bg-indigo-950 px-8 py-16 md:py-28 relative overflow-hidden">
-        {/* Trang trí nền */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-500 rounded-full -translate-y-1/2 translate-x-1/2 opacity-10 blur-[140px]"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600 rounded-full translate-y-1/2 -translate-x-1/2 opacity-10 blur-[120px]"></div>
+    <div className="min-h-screen bg-[#f8f9fc]">
+      {/* Refined Small Banner */}
+      <header className="bg-indigo-950 px-6 pt-8 pb-10 md:pt-12 md:pb-16 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-400 rounded-full -translate-y-1/2 translate-x-1/2 opacity-[0.05] blur-3xl"></div>
         
-        <div className="max-w-5xl mx-auto relative z-10">
-          <div className="flex flex-col items-center md:items-start text-center md:text-left gap-8">
-            <div className="inline-flex items-center gap-4 bg-white/5 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-inner">
-               <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.8)]"></div>
-               <p className="text-white/80 font-black text-xs uppercase tracking-[0.4em] leading-none">Cục Thuế Tỉnh Điện Biên</p>
+        <div className="max-w-4xl mx-auto relative z-10">
+          <div className="flex flex-col items-center md:items-start text-center md:text-left gap-4">
+            <div className="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
+               <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
+               <p className="text-white/80 font-black text-[8px] uppercase tracking-[0.2em] leading-none">Thuế tỉnh Điện Biên</p>
             </div>
+            
             <div className="space-y-4">
-              <h1 className="text-6xl md:text-9xl font-black text-white uppercase tracking-tighter leading-[0.85] flex flex-col md:flex-row md:items-center gap-x-6">
-                Sổ Doanh Thu 
-                <span className="text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 via-orange-400 to-red-500 drop-shadow-2xl">
-                  Smart AI
-                </span>
+              <h1 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter leading-tight">
+                Sổ doanh thu <br className="md:hidden" />
+                <span className="text-indigo-400">bán hàng hóa, dịch vụ S1A</span>
               </h1>
-              <p className="text-indigo-200/50 text-sm md:text-xl font-bold uppercase tracking-[0.3em] max-w-2xl leading-relaxed">
-                Hệ thống hỗ trợ lập mẫu S1a-HKD thông minh
-              </p>
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-indigo-950 px-4 py-2 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wider shadow-[0_10px_30px_rgba(251,191,36,0.2)] border border-yellow-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                Sản phẩm miễn phí hỗ trợ hộ kinh doanh
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4 md:p-8 -mt-16 md:-mt-28 relative z-20">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 -mt-6 md:-mt-10 relative z-20">
         {view === AppView.EDIT ? renderEditView() : renderPreviewView()}
       </main>
 
-      <footer className="max-w-5xl mx-auto py-16 px-8 text-center">
-        <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.5em] opacity-30">
-          Chuyên gia nghiệp vụ Tài chính & AI © 2025
+      <footer className="max-w-4xl mx-auto py-10 px-6 text-center">
+        <p className="text-gray-400 text-[8px] font-black uppercase tracking-[0.6em] opacity-20">
+          Digital Tax Solutions © 2025
         </p>
       </footer>
     </div>
