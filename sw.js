@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 's1a-ai-v12'; // Tăng phiên bản
+const CACHE_NAME = 's1a-ai-v14'; // Tăng phiên bản
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,7 +7,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Không ép buộc skipWaiting ngay lập tức để tránh tranh chấp trạng thái ứng dụng
+  self.skipWaiting(); // Ép buộc cập nhật
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return Promise.allSettled(
@@ -29,8 +29,6 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
-  // Tránh cache các request tới Google API để đảm bảo AI luôn hoạt động đúng
   if (event.request.url.includes('generativelanguage.googleapis.com')) return;
 
   event.respondWith(

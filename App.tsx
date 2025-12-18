@@ -32,46 +32,68 @@ export default function App() {
   const [processingField, setProcessingField] = useState<string | null>(null); 
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [showDataSettings, setShowDataSettings] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialDataLoaded = useRef(false);
+  const lastSavedJson = useRef<string>("");
 
-  // 1. Khởi tạo dữ liệu với cơ chế bảo vệ
+  // 1. Khởi tạo dữ liệu
   useEffect(() => {
     const initApp = async () => {
       try {
-        // Yêu cầu quyền lưu trữ vĩnh viễn (nếu trình duyệt hỗ trợ)
         if (navigator.storage && navigator.storage.persist) {
           await navigator.storage.persist();
         }
 
         const savedData = await loadFromDB();
-        if (savedData && savedData.info) {
+        
+        if (savedData && savedData.info && Array.isArray(savedData.transactions)) {
+          console.log("App: Loaded existing data from DB");
           setData(savedData);
+          lastSavedJson.current = JSON.stringify(savedData);
         } else {
-          // Chỉ nạp dữ liệu mẫu nếu CHẮC CHẮN không có dữ liệu cũ
+          console.log("App: No DB data, using sample");
           setData(SAMPLE_DATA);
         }
-        setIsLoaded(true);
+        
+        // Đánh dấu đã nạp xong để bắt đầu cho phép cơ chế Auto-save
+        setTimeout(() => {
+            initialDataLoaded.current = true;
+            setIsLoaded(true);
+        }, 500);
       } catch (err: any) {
-        console.error("Lỗi khởi tạo:", err);
-        setLoadError(err.message || "Không thể kết nối cơ sở dữ liệu cục bộ.");
+        setLoadError(err.message || "Lỗi khởi động cơ sở dữ liệu.");
       }
     };
     initApp();
   }, []);
 
-  // 2. Chỉ lưu khi isLoaded là true và có dữ liệu hợp lệ
+  // 2. Cơ chế Auto-save cực kỳ an toàn
   useEffect(() => {
-    if (!isLoaded || !data) return;
+    // CHẶN: Không lưu nếu chưa nạp xong dữ liệu từ DB
+    if (!initialDataLoaded.current || !data) return;
     
-    const timeoutId = setTimeout(() => {
-      saveToDB(data).catch(err => {
-        console.error("Lưu dữ liệu thất bại:", err);
-        setAiFeedback("Lỗi lưu trữ!");
-      });
-    }, 1000); // Tăng debounce để ổn định hơn
+    // CHẶN: Không lưu nếu dữ liệu hiện tại giống hệt bản vừa lưu/nạp
+    const currentJson = JSON.stringify(data);
+    if (currentJson === lastSavedJson.current) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        await saveToDB(data);
+        lastSavedJson.current = currentJson;
+        console.log("App: Auto-save complete");
+      } catch (err) {
+        console.error("App: Save error", err);
+      } finally {
+        // Hiển thị trạng thái "Đã lưu" trong 1s
+        setTimeout(() => setIsSaving(false), 1000);
+      }
+    }, 1500); // Debounce 1.5s để tiết kiệm tài nguyên
 
     return () => clearTimeout(timeoutId);
-  }, [data, isLoaded]);
+  }, [data]);
 
   const handleRetryLoad = () => {
     window.location.reload();
@@ -79,8 +101,11 @@ export default function App() {
 
   const handleReset = async () => {
     if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu hiện tại?")) {
+      initialDataLoaded.current = false; // Tạm khóa auto-save
       await clearDB();
       setData(SAMPLE_DATA);
+      lastSavedJson.current = "";
+      setTimeout(() => { initialDataLoaded.current = true; }, 500);
       setShowDataSettings(false);
     }
   };
@@ -96,15 +121,18 @@ export default function App() {
         const parsed = JSON.parse(content) as S1aFormState;
         
         if (parsed.info && Array.isArray(parsed.transactions)) {
+          initialDataLoaded.current = false;
           await importDataToDB(parsed);
           setData(parsed);
+          lastSavedJson.current = JSON.stringify(parsed);
+          setTimeout(() => { initialDataLoaded.current = true; }, 500);
           alert("Khôi phục dữ liệu thành công!");
           setShowDataSettings(false);
         } else {
           alert("File không đúng định dạng sao lưu.");
         }
       } catch (err) {
-        alert("Lỗi khi đọc file. Vui lòng thử lại.");
+        alert("Lỗi khi đọc file.");
       }
     };
     reader.readAsText(file);
@@ -243,7 +271,6 @@ export default function App() {
     return isNaN(num) ? 0 : num;
   };
 
-  // Màn hình lỗi bảo vệ dữ liệu
   if (loadError) {
     return (
       <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center">
@@ -264,7 +291,6 @@ export default function App() {
     );
   }
 
-  // Màn hình tải
   if (!isLoaded || !data) {
     return (
       <div className="min-h-screen bg-[#f8f9fc] flex flex-col items-center justify-center p-6 text-center">
@@ -284,9 +310,17 @@ export default function App() {
            <ShieldCheck className="w-5 h-5 text-emerald-500" />
            <p className="text-[11px] font-black text-emerald-950 uppercase tracking-wider">Bảo mật</p>
         </div>
-        <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Bộ nhớ an toàn</span>
+        <div className="flex items-center gap-4">
+           {isSaving && (
+             <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
+                <CheckCircle2 className="w-4 h-4 text-indigo-500" />
+                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Đã lưu</span>
+             </div>
+           )}
+           <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Bộ nhớ an toàn</span>
+           </div>
         </div>
       </div>
 
