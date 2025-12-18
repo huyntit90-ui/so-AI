@@ -1,6 +1,7 @@
+
 {
   "short_name": "Sổ doanh thu AI",
-  "name": "Sổ doanh thu AI - Thông minh & Tiện lợi",
+  "name": "Sổ doanh thu S1A - Điện Biên",
   "description": "Ứng dụng hỗ trợ hộ kinh doanh lập Sổ chi tiết doanh thu (Mẫu S1a-HKD) bằng giọng nói và AI.",
   "icons": [
     {
@@ -16,9 +17,10 @@
       "purpose": "any"
     }
   ],
-  "start_url": "index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "theme_color": "#1e40af",
+  "theme_color": "#1e1b4b",
   "background_color": "#ffffff",
   "orientation": "portrait"
 }
